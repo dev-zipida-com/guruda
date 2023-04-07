@@ -168,24 +168,22 @@ func mergeMaps[K comparable, V any](m1 map[K]V, m2 map[K]V) map[K]V {
 	return merged
 }
 
-func FetchContentsRecursively(client *github.Client, owner, repo, path string) ([]Box, map[string]Box, error) {
+func FetchContentsRecursively(client *github.Client, owner, repo, path string) (map[string]Box, error) {
 	_, directoryContent, _, err := client.Repositories.GetContents(context.Background(), owner, repo, path, nil)
 
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	var boxes = []Box{}
 	paths := make(map[string]Box)
 
 	for _, content := range directoryContent {
 		if *content.Type == "dir" {
-			subBoxes, subPath, err := FetchContentsRecursively(client, owner, repo, *content.Path)
+			subPath, err := FetchContentsRecursively(client, owner, repo, *content.Path)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 
-			boxes = append(boxes, subBoxes...)
 			paths = mergeMaps(paths, subPath)
 
 		} else {
@@ -205,7 +203,7 @@ func FetchContentsRecursively(client *github.Client, owner, repo, path string) (
 				myFilePath := *content.Path
 				myModules, err := GetImportedModulesList(myFilePath, myContent)
 				if err != nil {
-					return nil, nil, err
+					return nil, err
 				}
 
 				box := Box{
@@ -216,11 +214,10 @@ func FetchContentsRecursively(client *github.Client, owner, repo, path string) (
 					ProcessedCodeContent: "",
 				}
 
-				boxes = append(boxes, box)
 				paths[myFilePath] = box
 			}
 		}
 	}
 
-	return boxes, paths, nil
+	return paths, nil
 }
