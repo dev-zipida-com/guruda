@@ -8,8 +8,16 @@ import (
 
 	"github.com/dev-zipida-com/guruda/pkg"
 	"github.com/google/go-github/v50/github"
+	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
 )
+
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Error loading .env file")
+	}
+}
 
 func main() {
 	var username, reponame string
