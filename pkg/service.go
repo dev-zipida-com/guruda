@@ -41,6 +41,7 @@ type Box struct {
 	Content          string   `json:"content"`
 	FilePath         string   `json:"filePath"`
 	Modules          []string `json:"modules"`
+	Funcs			[]string `json:"funcs"`
 	ProcessedContent string   `json:"processedContent"`
 	ProcessedCodeContent  string   `json:"processedCodeContent"`
 }
@@ -132,7 +133,6 @@ func GetImportedModulesList(filePath string, content string) ([]string, error) {
 }
 
 func getResponseFromChatGPT(message string) (string, error) {
-
 	client := openai.NewClient(os.Getenv("OPENAI_API_KEY"))
 
 	resp, err := client.CreateChatCompletion(
@@ -157,6 +157,7 @@ func getResponseFromChatGPT(message string) (string, error) {
 
 	return resp.Choices[0].Message.Content, nil
 }
+
 func mergeMaps[K comparable, V any](m1 map[K]V, m2 map[K]V) map[K]V {
 	merged := make(map[K]V)
 	for key, value := range m1 {
@@ -206,10 +207,13 @@ func FetchContentsRecursively(client *github.Client, owner, repo, path string) (
 					return nil, err
 				}
 
+				myFuncs := getFuncs(myModules, myContent)
+
 				box := Box{
 					Content:          myContent,
 					FilePath:         myFilePath,
 					Modules:          myModules,
+					Funcs:            myFuncs,
 					ProcessedContent: "",
 					ProcessedCodeContent: "",
 				}
@@ -220,4 +224,53 @@ func FetchContentsRecursively(client *github.Client, owner, repo, path string) (
 	}
 
 	return paths, nil
+}
+
+func getFuncs(modules []string, content string) []string {
+	var funcs []string
+	
+	for _, module := range modules {
+		slash := strings.Split(module, "/")
+		moduleName := slash[len(slash)-1]
+
+		funcRegex := regexp.MustCompile(`\b` + moduleName + `\.[a-zA-Z0-9_]+\b`)
+		matches := funcRegex.FindAllString(content, -1)
+		funcs = append(funcs, matches...)
+	}
+
+	return funcs
+}
+
+func getTree(paths map[string]Box) []Box {
+	var tree []string
+
+	for filePath, box := range paths {
+		slash := strings.Split(filePath, "/")
+		if len(slash) == 0 {
+		   continue
+		}
+
+		content := box.Content
+		modules := box.Modules
+		funcs := box.Funcs
+
+		for _, module := range modules {
+			slash := strings.Split(module, "/")
+			
+			// 경로를 /로 구분하지 않는 경우라면, 외부 라이브러리거나 또는 내장 모듈일 것으로 가정함.
+			if len(slash) == 0 {
+				continue
+			} else {
+				
+			}
+		}
+
+
+
+	}
+
+	
+
+	return tree
+	
 }
