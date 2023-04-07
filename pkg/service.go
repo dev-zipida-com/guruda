@@ -42,16 +42,16 @@ type Box struct {
 	FilePath         string   `json:"filePath"`
 	Modules          []string `json:"modules"`
 	ProcessedContent string   `json:"processedContent"`
+	ProcessedCodeContent  string   `json:"processedCodeContent"`
 }
 
 func GetContent(url string) (string, error) {
-
 	method := "GET"
 	token := os.Getenv("GITHUB_TOKEN")
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, nil)
-	req.Header.Set("Authorization", "token "+token)
+	req.Header.Set("Authorization", "token " + token)
 
 	if err != nil {
 		return "", err
@@ -157,24 +157,37 @@ func getResponseFromChatGPT(message string) (string, error) {
 
 	return resp.Choices[0].Message.Content, nil
 }
+func mergeMaps[K comparable, V any](m1 map[K]V, m2 map[K]V) map[K]V {
+	merged := make(map[K]V)
+	for key, value := range m1 {
+		merged[key] = value
+	}
+	for key, value := range m2 {
+		merged[key] = value
+	}
+	return merged
+}
 
-func FetchContentsRecursively(client *github.Client, owner, repo, path string) ([]Box, error) {
+func FetchContentsRecursively(client *github.Client, owner, repo, path string) ([]Box, map[string]Box, error) {
 	_, directoryContent, _, err := client.Repositories.GetContents(context.Background(), owner, repo, path, nil)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var boxes = []Box{}
+	paths := make(map[string]Box)
 
 	for _, content := range directoryContent {
 		if *content.Type == "dir" {
-			subBoxes, err := FetchContentsRecursively(client, owner, repo, *content.Path)
+			subBoxes, subPath, err := FetchContentsRecursively(client, owner, repo, *content.Path)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			boxes = append(boxes, subBoxes...)
+			paths = mergeMaps(paths, subPath)
+
 		} else {
 			extension := strings.Split(*content.Path, ".")
 			var extensionName string
@@ -192,7 +205,7 @@ func FetchContentsRecursively(client *github.Client, owner, repo, path string) (
 				myFilePath := *content.Path
 				myModules, err := GetImportedModulesList(myFilePath, myContent)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 
 				box := Box{
@@ -200,12 +213,14 @@ func FetchContentsRecursively(client *github.Client, owner, repo, path string) (
 					FilePath:         myFilePath,
 					Modules:          myModules,
 					ProcessedContent: "",
+					ProcessedCodeContent: "",
 				}
-				fmt.Println(box.FilePath, box.Modules)
+
 				boxes = append(boxes, box)
+				paths[myFilePath] = box
 			}
 		}
 	}
 
-	return boxes, nil
+	return boxes, paths, nil
 }

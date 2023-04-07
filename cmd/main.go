@@ -36,9 +36,11 @@ func main() {
 
 	client := github.NewClient(tc)
 
-	_, err := pkg.FetchContentsRecursively(client, username, reponame, "")
+	_, paths, err := pkg.FetchContentsRecursively(client, username, reponame, "")
 	if err != nil {
 		log.Fatal("FetchContentsRecursively error: ", err)
 		return
 	}
+	fmt.Println("paths: ", paths)
+	
 }
