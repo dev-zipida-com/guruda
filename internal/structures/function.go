@@ -1,9 +1,24 @@
 package structures
 
-type ExtractedObject struct {
+type References struct {
 	Name string
-	Code string
-	FileRoute string
-	Description string
-	References []string
+	Imported []string
+	Path string
 }
+
+type Module struct {
+	Name string
+	Imported []string
+}
+
+type ExtractedObject struct {
+	Code string
+	Path string
+	Description string
+	DescriptionInShort string
+	References References
+}
+type Modules struct {
+	Module Module
+}
+
