@@ -3,6 +3,7 @@ package pkg
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"go/parser"
 	"go/token"
 	"net/http"
@@ -110,11 +111,11 @@ func GetImportedModulesList(filePath string, content string) ([]string, error) {
 	case ".go":
 		return GetImportedModulesListInGolang(content)
 	case ".py":
-		importRegex = regexp.MustCompile(`^\s*import\s+(\w+|\.)+\s*$`)
+		importRegex = regexp.MustCompile(`import\s+(?:(?:(?:[\w.]+)\s+as\s+\w+\s*,\s*)*(?:[\w.]+)\s*?)`)
 	case ".java":
-		importRegex = regexp.MustCompile(`^\s*import\s+(?:static\s+)?([\w\.]+)\s*;?$`)
+		importRegex = regexp.MustCompile(`import\s+(?:(?:(?:static\s+)?[\w.*]+(?:\s+as\s+\w+)?\s*,\s*)*(?:static\s+)?[\w.*]+\s*(?:as\s+\w+)?);`)
 	case ".ts", ".js":
-		importRegex = regexp.MustCompile(`import\s+(?:.+\s+from\s+)?['"](.+)['"]`)
+		importRegex = regexp.MustCompile(`import\s+(?:(?:(?:{.*?})|\S+)\s+from\s+)?['"](?P<path>@?[^'"]+)['"](?:;)?`)
 	default:
 		return nil, fmt.Errorf("invalid file extension: %s", fileExtension)
 	}
@@ -126,7 +127,11 @@ func GetImportedModulesList(filePath string, content string) ([]string, error) {
 	matches := importRegex.FindAllStringSubmatch(content, -1)
 	modules := make([]string, len(matches))
 	for i, match := range matches {
-		modules[i] = match[1]
+		cleanPath := filepath.Clean(match[1])
+		relPathExpr := regexp.MustCompile(`^[.~$@].*?[/\\]?`)
+		cleanPath = relPathExpr.ReplaceAllString(cleanPath, "")
+
+		modules[i] = cleanPath
 	}
 
 	return modules, nil
@@ -171,7 +176,9 @@ func mergeMaps[K comparable, V any](m1 map[K]V, m2 map[K]V) map[K]V {
 
 func FetchContentsRecursively(client *github.Client, owner, repo, path string) (map[string]Box, error) {
 	_, directoryContent, _, err := client.Repositories.GetContents(context.Background(), owner, repo, path, nil)
-
+	everyFilePathsList := []string{}
+	var packageName string
+	
 	if err != nil {
 		return nil, err
 	}
@@ -196,12 +203,20 @@ func FetchContentsRecursively(client *github.Client, owner, repo, path string) (
 			} else {
 				extensionName = extension[len(extension)-1]
 			}
+
 			if extensionName == "js" || extensionName == "ts" || extensionName == "py" || extensionName == "go" || extensionName == "java" {
 				myContent, err := GetContent(*content.URL)
 				if err != nil {
 					fmt.Println(err)
 				}
+
+				if strings.Contains(*content.Path, "go.mod") {	
+					packageName = strings.Split(strings.Split(myContent, "module ")[1], "\n")[0]
+				}
+
 				myFilePath := *content.Path
+				everyFilePathsList = append(everyFilePathsList, myFilePath)
+
 				myModules, err := GetImportedModulesList(myFilePath, myContent)
 				if err != nil {
 					return nil, err
@@ -223,7 +238,98 @@ func FetchContentsRecursively(client *github.Client, owner, repo, path string) (
 		}
 	}
 
+	pathToModule, moduleToFunc := setPaths(paths)
+
+	functionsExplanation, err := getFunctionsMeaning(everyFilePathsList, pathToModule, moduleToFunc)
+	if err != nil {
+		return nil, err
+	}
+
 	return paths, nil
+}
+func getPackageNameFromGoFile(directoryContent []*github.RepositoryContent) (string, error) {
+	for _, content := range directoryContent {
+		if strings.Contains(*content.Path, "go.mod") {
+			mod, err := GetContent(*content.URL)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			// get the string started with "module"
+			packageName := strings.Split(strings.Split(mod, "module ")[1], "\n")[0]
+			return packageName, nil
+		}
+	}
+
+	return "", errors.New("package name not found")
+}
+func isInternalModule(module string, everyFilePathsList []string) bool {
+	for _, fp := range everyFilePathsList {
+		if strings.Contains(fp, module) {
+			return true
+		}
+	}
+	return false
+}
+
+func getFunctionsMeaning(everyFilePathsList []string, pathToModule map[string][]string , moduleToFunc map[string][]string) (map[string]string, error) {
+	functionsExplanation := map[string]string{}
+
+	for _, fp := range everyFilePathsList {
+		modulesListOfFileUses := pathToModule[fp]
+		for _, module := range modulesListOfFileUses {
+			functionsListOfModuleUses := moduleToFunc[module]
+			for _, function := range functionsListOfModuleUses {
+				if functionsExplanation[function] == "" {
+					// if function is originated inner context of the file stream, or its one of the inner functions, then ask chatgpt for explanation
+					// else, continue the loof.
+					if isInternalModule(module, everyFilePathsList) {
+						var message string
+						response, err := getResponseFromChatGPT(message)
+						functionsExplanation[function] = response
+
+						if err != nil {
+							fmt.Println(err)
+						}
+						
+					} else {
+						continue
+					}
+				}
+			}
+			
+		}
+	}
+
+	return functionsExplanation, nil
+}
+
+func setPaths(paths map[string]Box) (map[string][]string, map[string][]string){
+	pathToModule := map[string][]string{}
+	moduleToFunc := map[string][]string{}
+
+	for _, box := range paths {
+		filePath := box.FilePath
+		modules := box.Modules
+		funcs := box.Funcs
+		
+		pathToModule[filePath] = modules
+
+		for _, module := range modules {
+			if _, ok := moduleToFunc[module]; !ok {
+				moduleToFunc[module] = []string{}
+			}
+			
+			for _, f := range funcs {
+				moduleNameInFunc := strings.Split(f, ".")[0]
+				if strings.Contains(moduleNameInFunc, module) {
+					moduleToFunc[module] = append(moduleToFunc[module], f)
+				}
+			}
+		}
+	}
+
+	return pathToModule, moduleToFunc
 }
 
 func getFuncs(modules []string, content string) []string {
@@ -235,42 +341,41 @@ func getFuncs(modules []string, content string) []string {
 
 		funcRegex := regexp.MustCompile(`\b` + moduleName + `\.[a-zA-Z0-9_]+\b`)
 		matches := funcRegex.FindAllString(content, -1)
-		funcs = append(funcs, matches...)
+
+		for _, m := range matches {
+			for _, f := range funcs {
+				if f == m {
+					continue
+				}
+				funcs = append(funcs, m)
+			}
+		}
 	}
 
 	return funcs
 }
 
-func getTree(paths map[string]Box) []Box {
-	var tree []string
+// func getTree(paths map[string]Box) []Box {
+// 	var tree []string
 
-	for filePath, box := range paths {
-		slash := strings.Split(filePath, "/")
-		if len(slash) == 0 {
-		   continue
-		}
+// 	for filePath, box := range paths {
+// 		slash := strings.Split(filePath, "/")
+// 		if len(slash) == 0 {
+// 		   continue
+// 		}
 
-		content := box.Content
-		modules := box.Modules
-		funcs := box.Funcs
+// 		content := box.Content
+// 		modules := box.Modules
+// 		funcs := box.Funcs
 
-		for _, module := range modules {
-			slash := strings.Split(module, "/")
-			
-			// 경로를 /로 구분하지 않는 경우라면, 외부 라이브러리거나 또는 내장 모듈일 것으로 가정함.
-			if len(slash) == 0 {
-				continue
-			} else {
-				
-			}
-		}
+		
 
 
 
-	}
+// 	}
 
 	
 
-	return tree
+// 	return tree
 	
-}
+// }
