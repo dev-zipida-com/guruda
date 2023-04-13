@@ -14,6 +14,19 @@ func ExtractObjects(code string) string {
 	return prompt + code
 }
 
+func ExtractModules(code string) string {
+	prompt := `
+		Extract the Modules name that used in the code below "---". 
+		Follow there conditions.
+			1. Answer me in a json format. No need additional explanations of you, and only give answers that extract the names of the object.
+			2. Your json type response is composed of "Modules". "Modules" is an array of strings that composed of imported modules in the code.
+			3. In case of getting the "Modules", describe a module with it's name and a imported functions, classes, or decorators with its name too. for example, {"Modules": [{"name": "@nestjs/common", import:["Injectable"]}, {"name": "mongoose", import:["FilterQuery", "Model"]}, ...], ...}.
+		---
+
+	`
+	return prompt + code
+}
+
 func AskRefactoredCode(explanationByNL string, extension string) string {
 	prompt := `
 		write the code with ` + extension + ` language. following below my explanation.

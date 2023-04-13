@@ -18,7 +18,3 @@ type ExtractedObject struct {
 	DescriptionInShort string
 	References References
 }
-type Modules struct {
-	Module Module
-}
-
