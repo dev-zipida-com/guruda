@@ -10,5 +10,11 @@ func GetDependencies(paths map[string]string, modules map[string][]structures.Mo
 	for path, code := range paths {
 		objects := modules[path]
 
+		for _, object := range objects {
+			f[object.Name] = structures.ExtractedObject{
+				Code:
+			}
+		}
+
 	}
 }

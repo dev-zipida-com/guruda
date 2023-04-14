@@ -1,23 +1,17 @@
 package pkg
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"go/parser"
 	"go/token"
-	"net/http"
 	"path/filepath"
 
 	"github.com/google/go-github/v50/github"
 
 	"context"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
-
-	openai "github.com/sashabaranov/go-openai"
 )
 
 type Response struct {
@@ -47,42 +41,7 @@ type Box struct {
 	ProcessedCodeContent  string   `json:"processedCodeContent"`
 }
 
-func GetContent(url string) (string, error) {
-	method := "GET"
-	token := os.Getenv("GITHUB_TOKEN")
 
-	client := &http.Client{}
-	req, err := http.NewRequest(method, url, nil)
-	req.Header.Set("Authorization", "token " + token)
-
-	if err != nil {
-		return "", err
-	}
-
-	res, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-
-	var resContent Response
-
-	err = json.NewDecoder(res.Body).Decode(&resContent)
-	if err != nil {
-		return "", err
-	}
-
-	decodedBytes, err := base64.StdEncoding.DecodeString(resContent.Content)
-	if err != nil {
-		return "", err
-	}
-
-	if string(decodedBytes) == "" {
-		return "", fmt.Errorf("Content Not Found")
-	}
-
-	return string(decodedBytes), nil
-}
 
 func GetImportedModulesListInGolang(content string) ([]string, error) {
 	// 문자열을 파일로 변환
@@ -137,31 +96,6 @@ func GetImportedModulesList(filePath string, content string) ([]string, error) {
 	return modules, nil
 }
 
-func getResponseFromChatGPT(message string) (string, error) {
-	client := openai.NewClient(os.Getenv("OPENAI_API_KEY"))
-
-	resp, err := client.CreateChatCompletion(
-		context.Background(),
-		openai.ChatCompletionRequest{
-			Model: openai.GPT3Dot5Turbo,
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: message,
-				},
-			},
-			Stream:      false,
-			Temperature: 0.5,
-		},
-	)
-
-	if err != nil {
-		fmt.Printf("ChatCompletion error: %v\n", err)
-		return "", err
-	}
-
-	return resp.Choices[0].Message.Content, nil
-}
 
 func mergeMaps[K comparable, V any](m1 map[K]V, m2 map[K]V) map[K]V {
 	merged := make(map[K]V)
@@ -177,13 +111,14 @@ func mergeMaps[K comparable, V any](m1 map[K]V, m2 map[K]V) map[K]V {
 func FetchContentsRecursively(client *github.Client, owner, repo, path string) (map[string]Box, error) {
 	_, directoryContent, _, err := client.Repositories.GetContents(context.Background(), owner, repo, path, nil)
 	everyFilePathsList := []string{}
-	var packageName string
 	
 	if err != nil {
 		return nil, err
 	}
 
 	paths := make(map[string]Box)
+	var modPath string = ""
+	var goTopPath string = ""
 
 	for _, content := range directoryContent {
 		if *content.Type == "dir" {
@@ -211,7 +146,8 @@ func FetchContentsRecursively(client *github.Client, owner, repo, path string) (
 				}
 
 				if strings.Contains(*content.Path, "go.mod") {	
-					packageName = strings.Split(strings.Split(myContent, "module ")[1], "\n")[0]
+					modPath = strings.Split(strings.Split(myContent, "module ")[1], "\n")[0]
+					goTopPath = *content.Path
 				}
 
 				myFilePath := *content.Path
