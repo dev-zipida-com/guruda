@@ -1,4 +1,5 @@
 import ast
+import sys
 
 def extract_imports(code_str):
     imports = []
@@ -32,3 +33,6 @@ def extract_imports(code_str):
         import_dict[imported_module] = [""]
 
     return import_dict
+
+arg1 = sys.argv[1]
+print(extract_imports(arg1))

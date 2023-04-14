@@ -8,8 +8,9 @@ import (
 	"github.com/dev-zipida-com/guruda/internal/structures"
 )
 
-func executeAnotherLanguageFile(path, language string) structures.Response {
-	cmd := exec.Command(language, path)
+func executeAnotherLanguageFile(language, functionPath, content string) structures.Response {
+
+	cmd := exec.Command(language, functionPath, content)
 
 	output, err := cmd.Output()
 	if err != nil {
