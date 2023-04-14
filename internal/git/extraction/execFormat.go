@@ -1,14 +1,11 @@
 package git
 
 import (
-	"encoding/json"
 	"fmt"
 	"os/exec"
-
-	"github.com/dev-zipida-com/guruda/internal/structures"
 )
 
-func executeAnotherLanguageFile(language, functionPath, content string) structures.Response {
+func executeAnotherLanguageFile(language, functionPath, content string) string {
 
 	cmd := exec.Command(language, functionPath, content)
 
@@ -17,11 +14,5 @@ func executeAnotherLanguageFile(language, functionPath, content string) structur
 		fmt.Println(err)
 	}
 
-	var res structures.Response
-	err = json.Unmarshal(output, &res)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return res
+	return string(output)
 }
