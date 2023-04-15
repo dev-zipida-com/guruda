@@ -1,4 +1,4 @@
-function getFunctionsStartingIndex(functionName) {
+function getFunc(functionName) {
     const functionDeclarationRegex = new RegExp(`function ${functionName}\\(`);
     const functionExpressionRegex = new RegExp(
         `const ${functionName} = function\\(`
@@ -13,49 +13,53 @@ function getFunctionsStartingIndex(functionName) {
         `static\\s+${functionName}\\(.*\\)\\s*{`
     );
 
-    let index = fileContents.search(functionDeclarationRegex);
-    if (index !== -1) {
-        return console.log(index);
-    }
+    const regexpes = [
+        functionDeclarationRegex,
+        functionExpressionRegex,
+        arrowFunctionRegex,
+        classMethodRegex,
+        staticClassMethodRegex,
+    ];
 
-    index = fileContents.search(functionExpressionRegex);
-    if (index !== -1) {
-        return console.log(index);
-    }
+    const index = regexpes.findIndex(
+        (regex) => fileContents.search(regex) !== -1
+    );
 
-    index = fileContents.search(arrowFunctionRegex);
     if (index !== -1) {
-        return console.log(index);
+        return getFunctionsCode(
+            fileContents.search(regexpes[index]),
+            fileContents
+        );
+    } else {
+        return "Found No Function";
     }
-
-    index = fileContents.search(classMethodRegex);
-    if (index !== -1) {
-        return console.log(index);
-    }
-
-    index = fileContents.search(staticClassMethodRegex);
-    if (index !== -1) {
-        return console.log(index);
-    }
-
-    console.log(`The function ${functionName} could not be found`);
-    return;
 }
 
 function getFunctionsCode(startingIndex, fileContents) {
     let functionCode = "";
-    let openBrackets = 0;
-    let closeBrackets = 0;
-    let i = startingIndex;
+    let openBraces = 0;
+    let isFunc = false;
+    let lastBrace = "";
 
-    while (openBrackets !== closeBrackets || openBrackets === 0) {
-        if (fileContents[i] === "{") {
-            openBrackets++;
-        } else if (fileContents[i] === "}") {
-            closeBrackets++;
+    for (let i = startingIndex; i < fileContents.length; i++) {
+        const char = fileContents[i];
+
+        if (char === "{" || char === "(") {
+            openBraces++;
+            lastBrace = char;
+            if (isFunc === false) {
+                isFunc = true;
+            }
+        } else if (char === "}" || char === ")") {
+            openBraces--;
+            lastBrace = char;
         }
-        functionCode += fileContents[i];
-        i++;
+
+        functionCode += char;
+
+        if (isFunc && openBraces === 0 && lastBrace !== ")") {
+            break;
+        }
     }
 
     return functionCode;
@@ -103,15 +107,18 @@ function extractModules(code) {
     let match;
 
     while ((match = regex.functionDeclaration.exec(code))) {
-        if (functionName === "function") continue;
-        functionDeclarations.push(match[1]);
+        const functionName = match[1];
+        if (functionName && !functionDeclarations.includes(functionName)) {
+            if (functionName === "function") continue;
+            functionDeclarations.push([functionName, getFunc(functionName)]);
+        }
     }
 
     while ((match = regex.functionExpression.exec(code))) {
         const functionName = match[1] || match[2] || match[3];
         if (functionName && !functionDeclarations.includes(functionName)) {
             if (functionName === "function") continue;
-            functionDeclarations.push(functionName);
+            functionDeclarations.push([functionName, getFunc(functionName)]);
         }
     }
 
@@ -119,7 +126,7 @@ function extractModules(code) {
         const functionName = match[1] || match[4];
         if (functionName && !functionDeclarations.includes(functionName)) {
             if (functionName === "function") continue;
-            functionDeclarations.push(functionName);
+            functionDeclarations.push([functionName, getFunc(functionName)]);
         }
     }
 
@@ -127,7 +134,7 @@ function extractModules(code) {
         const functionName = match[1];
         if (functionName && !functionDeclarations.includes(functionName)) {
             if (functionName === "function") continue;
-            functionDeclarations.push(functionName);
+            functionDeclarations.push([functionName, getFunc(functionName)]);
         }
     }
 
@@ -135,7 +142,7 @@ function extractModules(code) {
         const functionName = match[1];
         if (functionName && !functionDeclarations.includes(functionName)) {
             if (functionName === "function") continue;
-            functionDeclarations.push(functionName);
+            functionDeclarations.push([functionName, getFunc(functionName)]);
         }
     }
 
