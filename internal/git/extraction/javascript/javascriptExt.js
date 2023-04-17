@@ -1,4 +1,4 @@
-function getFunc(functionName) {
+function getFunc(functionName, fileContents) {
     const functionDeclarationRegex = new RegExp(`function ${functionName}\\(`);
     const functionExpressionRegex = new RegExp(
         `const ${functionName} = function\\(`
@@ -110,7 +110,10 @@ function extractModules(code) {
         const functionName = match[1];
         if (functionName && !functionDeclarations.includes(functionName)) {
             if (functionName === "function") continue;
-            functionDeclarations.push([functionName, getFunc(functionName)]);
+            functionDeclarations.push([
+                functionName,
+                getFunc(functionName, code),
+            ]);
         }
     }
 
@@ -118,7 +121,10 @@ function extractModules(code) {
         const functionName = match[1] || match[2] || match[3];
         if (functionName && !functionDeclarations.includes(functionName)) {
             if (functionName === "function") continue;
-            functionDeclarations.push([functionName, getFunc(functionName)]);
+            functionDeclarations.push([
+                functionName,
+                getFunc(functionName, code),
+            ]);
         }
     }
 
@@ -126,7 +132,10 @@ function extractModules(code) {
         const functionName = match[1] || match[4];
         if (functionName && !functionDeclarations.includes(functionName)) {
             if (functionName === "function") continue;
-            functionDeclarations.push([functionName, getFunc(functionName)]);
+            functionDeclarations.push([
+                functionName,
+                getFunc(functionName, code),
+            ]);
         }
     }
 
@@ -134,7 +143,10 @@ function extractModules(code) {
         const functionName = match[1];
         if (functionName && !functionDeclarations.includes(functionName)) {
             if (functionName === "function") continue;
-            functionDeclarations.push([functionName, getFunc(functionName)]);
+            functionDeclarations.push([
+                functionName,
+                getFunc(functionName, code),
+            ]);
         }
     }
 
@@ -142,7 +154,10 @@ function extractModules(code) {
         const functionName = match[1];
         if (functionName && !functionDeclarations.includes(functionName)) {
             if (functionName === "function") continue;
-            functionDeclarations.push([functionName, getFunc(functionName)]);
+            functionDeclarations.push([
+                functionName,
+                getFunc(functionName, code),
+            ]);
         }
     }
 
