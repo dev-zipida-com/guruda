@@ -11,7 +11,9 @@ import (
 // References는 이 함수가 참조하는 다른 함수의 이름(Name), 다른 함수가 참조하는 또 다른 함수의 이름(Imported), 다른 함수가 위치한 페이지의 상대 경로(Path)를 포함합니다. 만약 함수가 참조하는 다른 함수가 없다면 References는 nil이 됩니다.
 // 만약 References가 nil이거나 모두 외부 함수를 참조하고 있다면(즉 내가 만든 함수를 하나도 참조하고 있지 않다면), 이 함수는 말단에 위치한 함수이므로, chatgpt를 호출하여 이 함수에 대한 자연어 설명을 가져옵니다.
 // 이 함수는 내가 만든 함수를 참조하고 있는 함수들을 찾아내고, 그 함수들을 다시 이 함수에게 넘겨주는 방식으로 재귀적으로 호출됩니다.
-func GetDependencies(paths map[string]string) (ExtractedObject structures.ExtractedObject) {
+func GetDependencies(paths map[string]string) (map[string]structures.ExtractedObject) {
 	f := make(map[string]structures.ExtractedObject)
+
+
 	
 }
