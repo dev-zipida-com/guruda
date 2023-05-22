@@ -1,0 +1,28 @@
+question = """Tell us what part of the code refered to the VectorStore is wrong and how to fix it.
+Just Answer only the code that needed to be replaced to fix the error.
+
+error - ResponseError: search_phase_execution_exception: [query_shard_exception] Reason: No mapping found for [create_date] in order to sort on
+    at onBody (/Users/js.park/Project/facematch/app/node_modules/@elastic/elasticsearch/lib/Transport.js:367:23)
+    at IncomingMessage.onEnd (/Users/js.park/Project/facematch/app/node_modules/@elastic/elasticsearch/lib/Transport.js:291:11)
+    at IncomingMessage.emit (node:events:525:35)
+    at endReadableNT (node:internal/streams/readable:1358:12)
+    at processTicksAndRejections (node:internal/process/task_queues:83:21) {
+  meta: {
+    body: { error: [Object], status: 400 },
+    statusCode: 400,
+    headers: {
+      'content-type': 'application/json; charset=UTF-8',
+      'content-length': '549'
+    },
+    meta: {
+      context: null,
+      request: [Object],
+      name: 'elasticsearch-js',
+      connection: [Object],
+      attempts: 0,
+      aborted: false
+    }
+  },
+  page: '/api/comparison/video'
+}
+"""
