@@ -2,6 +2,10 @@
 
 전체 코드의 맥락을 인식하는 AI Chatbot for Programming
 
+<object type="application/pdf" data="https://github.com/dev-zipida-com/guruda/files/11529533/Introducing-My-AI-Program.pdf" width="94%" height="650"></object>
+
+<iframe src="https://github.com/dev-zipida-com/guruda/files/11529533/Introducing-My-AI-Program.pdf">
+
 <br>
 
 ## 1. Setup Environment
